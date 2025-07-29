@@ -1,3 +1,4 @@
+import { useRouter } from 'next/router'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 
@@ -12,6 +13,7 @@ export default function Tasks() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
+  const router = useRouter()
 
   useEffect(() => {
     fetchTasks()
@@ -19,10 +21,15 @@ export default function Tasks() {
 
   const fetchTasks = async () => {
     const user = (await supabase.auth.getUser()).data.user
+    if (!user) {
+      router.push('/')
+      return
+    }
+
     const { data, error } = await supabase
       .from('tasks')
       .select('*')
-      .eq('user_id', user?.id)
+      .eq('user_id', user.id)
 
     if (data) setTasks(data)
     if (error) console.error(error)
@@ -34,17 +41,32 @@ export default function Tasks() {
       title,
       description,
       is_done: false,
-      user_id: user?.id
+      user_id: user.id
     })
+
     if (error) return alert(error.message)
     setTitle('')
     setDescription('')
     fetchTasks()
   }
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    router.push('/')
+  }
+
   return (
     <main className="p-6 max-w-xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6">Your Tasks</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Your Tasks</h1>
+        <button
+          onClick={handleLogout}
+          className="bg-red-500 text-white px-4 py-2 rounded"
+        >
+          Logout
+        </button>
+      </div>
+
       <div className="mb-4">
         <input
           className="border p-2 w-full mb-2 rounded"
@@ -60,6 +82,7 @@ export default function Tasks() {
         />
         <button onClick={addTask} className="bg-blue-600 text-white px-4 py-2 rounded">Add Task</button>
       </div>
+
       <ul className="space-y-2">
         {tasks.map(task => (
           <li key={task.id} className="p-4 border rounded bg-gray-100">
